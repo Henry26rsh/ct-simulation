@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>CT科普小课堂</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #121212;
+            color: #fff;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #control-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(20, 25, 30, 0.85);
+            border: 1px solid #00ADB5;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 173, 181, 0.3);
+            display: flex;
+            gap: 15px;
+            backdrop-filter: blur(5px);
+        }
+
+        .scan-btn {
+            background-color: #333;
+            color: #00ADB5;
+            border: 1px solid #00ADB5;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .scan-btn:hover {
+            background-color: #00ADB5;
+            color: #fff;
+            box-shadow: 0 0 10px #00ADB5;
+        }
+
+        .scan-btn.active {
+            background-color: #f44336;
+            color: #fff;
+            border-color: #f44336;
+            box-shadow: 0 0 15px rgba(244, 67, 54, 0.6);
+        }
+
+        #status-bar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #00ADB5;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: #00ADB5;
+            z-index: 999;
+        }
+
+        #teaching-panel {
+            position: absolute;
+            top: 120px;
+            right: 24px;
+            width: 300px;
+            background: rgba(20, 25, 30, 0.88);
+            border: 1px solid #00ADB5;
+            border-left: 4px solid #00ADB5;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 173, 181, 0.3);
+            padding: 18px 20px;
+            backdrop-filter: blur(5px);
+            z-index: 10;
+            opacity: 0;
+            transform: translateX(24px);
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        #teaching-panel.show {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: auto;
+        }
+
+        #teaching-panel h3 {
+            margin: 0 0 12px;
+            color: #00ADB5;
+            font-size: 20px;
+        }
+
+        #teaching-panel ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        #teaching-panel li {
+            margin: 9px 0;
+            line-height: 1.45;
+            color: #e8f7f8;
+            font-size: 14px;
+        }
+
+        #system-entry-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at center, rgba(0, 173, 181, 0.14), rgba(18, 18, 18, 0.96) 58%);
+            backdrop-filter: blur(8px);
+        }
+
+        #system-entry-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.45s ease;
+        }
+
+        .entry-card {
+            width: 420px;
+            max-width: calc(100vw - 40px);
+            background: rgba(20, 25, 30, 0.9);
+            border: 1px solid #00ADB5;
+            border-left: 4px solid #00ADB5;
+            border-radius: 10px;
+            box-shadow: 0 0 22px rgba(0, 173, 181, 0.35);
+            padding: 30px;
+            text-align: center;
+        }
+
+        .entry-card h1 {
+            margin: 0 0 10px;
+            color: #00ADB5;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .entry-card p {
+            margin: 0 0 26px;
+            color: #c7dadd;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        .entry-actions {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .entry-btn {
+            min-width: 128px;
+            background-color: #333;
+            color: #00ADB5;
+            border: 1px solid #00ADB5;
+            padding: 12px 22px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .entry-btn:hover {
+            background-color: #00ADB5;
+            color: #fff;
+            box-shadow: 0 0 12px #00ADB5;
+        }
+
+        .entry-btn.exit {
+            border-color: #888;
+            color: #ddd;
+        }
+
+        .entry-btn.exit:hover {
+            background-color: #555;
+            border-color: #aaa;
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.18);
+        }
+
+        .entry-progress-wrap {
+            display: none;
+            margin-top: 26px;
+        }
+
+        .entry-progress-track {
+            width: 100%;
+            height: 12px;
+            overflow: hidden;
+            border: 1px solid #00ADB5;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.35);
+        }
+
+        #entry-progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #00ADB5, #55f1ff);
+            box-shadow: 0 0 10px rgba(0, 173, 181, 0.8);
+            transition: width 0.12s linear;
+        }
+
+        #entry-progress-text {
+            margin-top: 10px;
+            color: #00ADB5;
+            font-size: 14px;
+        }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+</head>
+
+<body>
+    <div id="system-entry-overlay">
+        <div class="entry-card">
+            <h1>医影智操</h1>
+            <p>CT 虚拟仿真教学系统</p>
+            <div class="entry-actions" id="entry-actions">
+                <button class="entry-btn" onclick="startSystemEntry()">进入系统</button>
+                <button class="entry-btn exit" onclick="exitSystem()">退出系统</button>
+            </div>
+            <div class="entry-progress-wrap" id="entry-progress-wrap">
+                <div class="entry-progress-track">
+                    <div id="entry-progress-bar"></div>
+                </div>
+                <div id="entry-progress-text">系统初始化中 0%</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading">正在加载 3D CT、患者和输液架模型，请稍候...</div>
+
+    <div id="status-bar">
+        <h2>CT 检查仿真操作台</h2>
+        <p>状态：<span id="status-text" style="color: #4caf50;">设备待机中</span></p>
+        <p style="font-size: 12px; color: #888;">提示：鼠标左键旋转，右键平移，滚轮缩放</p>
+    </div>
+
+    <div id="control-panel">
+        <button class="scan-btn" onclick="moveToPosition(event, 'head')">头颅扫描定位</button>
+        <button class="scan-btn" onclick="moveToPosition(event, 'chest')">胸部扫描定位</button>
+        <button class="scan-btn" onclick="moveToPosition(event, 'abdomen')">腹部扫描定位</button>
+        <button class="scan-btn" onclick="moveToPosition(event, 'reset')" style="border-color: #888; color: #ddd;">退床 / 复位</button>
+    </div>
+
+    <div id="teaching-panel">
+        <h3 id="teaching-title"></h3>
+        <ul id="teaching-list"></ul>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script>
+        function startSystemEntry() {
+            const actions = document.getElementById("entry-actions");
+            const progressWrap = document.getElementById("entry-progress-wrap");
+            const progressBar = document.getElementById("entry-progress-bar");
+            const progressText = document.getElementById("entry-progress-text");
+            const overlay = document.getElementById("system-entry-overlay");
+
+            actions.style.display = "none";
+            progressWrap.style.display = "block";
+
+            let progress = 0;
+            const timer = setInterval(() => {
+                progress += 2;
+                progressBar.style.width = progress + "%";
+                progressText.innerText = "系统初始化中 " + progress + "%";
+
+                if (progress >= 100) {
+                    clearInterval(timer);
+                    progressText.innerText = "加载完成，正在进入系统...";
+
+                    setTimeout(() => {
+                        overlay.classList.add("hidden");
+                        setTimeout(() => {
+                            overlay.style.display = "none";
+                        }, 450);
+                    }, 300);
+                }
+            }, 35);
+        }
+
+        function exitSystem() {
+            window.close();
+
+            const progressText = document.getElementById("entry-progress-text");
+            const progressWrap = document.getElementById("entry-progress-wrap");
+
+            progressWrap.style.display = "block";
+            progressText.innerText = "浏览器可能会阻止自动关闭，请手动关闭当前页面。";
+        }
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x121212);
+
+        const camera = new THREE.PerspectiveCamera(
+            45,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            100000
+        );
+        camera.position.set(200, 150, 300);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.getElementById("canvas-container").appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(200, 500, 200);
+        scene.add(dirLight);
+
+        const laserMaterial = new THREE.LineBasicMaterial({
+            color: 0xff0000,
+            transparent: true,
+            opacity: 0.8
+        });
+
+        const laserGeometry = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-100, 80, 0),
+            new THREE.Vector3(100, 80, 0)
+        ]);
+
+        const laserLine = new THREE.Line(laserGeometry, laserMaterial);
+        scene.add(laserLine);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 50, 0);
+        controls.update();
+
+        const loader = new THREE.GLTFLoader();
+
+        // 关键：人和床板都放进 movingGroup，之后只移动 movingGroup。
+        const movingGroup = new THREE.Group();
+        scene.add(movingGroup);
+
+        const patientGroup = new THREE.Group();
+        movingGroup.add(patientGroup);
+
+        let rightArmNode = null;
+        let leftArmNode = null;
+        let currentScanPart = "reset";
+        const armTargets = {
+            right: { x: Math.PI / 2, y: 0, z: 0 },
+            left: { x: Math.PI / 2, y: 0, z: 0 }
+        };
+
+        let loadedCount = 0;
+
+        function checkLoadStatus() {
+            loadedCount++;
+
+            if (loadedCount === 3) {
+                document.getElementById("loading").style.display = "none";
+            }
+        }
+
+        function isBedBoardName(name) {
+            const lowerName = name.toLowerCase();
+
+            return (
+                lowerName.includes("table") ||
+                lowerName.includes("bed") ||
+                lowerName.includes("couch") ||
+                lowerName.includes("board") ||
+                lowerName.includes("stretcher") ||
+                lowerName.includes("platform") ||
+                lowerName.includes("patienttable")
+            );
+        }
+
+        function normalizeModelToHeight(model, targetHeight) {
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+
+            if (size.y === 0) {
+                return;
+            }
+
+            const scaleFactor = targetHeight / size.y;
+            model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+            const scaledBox = new THREE.Box3().setFromObject(model);
+            const center = scaledBox.getCenter(new THREE.Vector3());
+
+            model.position.set(
+                -center.x,
+                -scaledBox.min.y,
+                -center.z
+            );
+        }
+
+        function applyIVStandColors(model) {
+            model.traverse((node) => {
+                if (!node.isMesh) {
+                    return;
+                }
+
+                const lowerName = node.name.toLowerCase();
+                const isFluidPart =
+                    lowerName.includes("bag") ||
+                    lowerName.includes("fluid") ||
+                    lowerName.includes("bottle") ||
+                    lowerName.includes("liquid") ||
+                    lowerName.includes("drip");
+
+                node.material = node.material.clone();
+
+                if (isFluidPart) {
+                    node.material.color.set(0x9ad7ff);
+                    node.material.transparent = true;
+                    node.material.opacity = 0.72;
+                    node.material.roughness = 0.18;
+                    node.material.metalness = 0.02;
+                } else {
+                    node.material.color.set(0xd7dde3);
+                    node.material.roughness = 0.32;
+                    node.material.metalness = 0.45;
+                }
+            });
+        }
+
+        // 加载 CT 机器模型
+        function setArmTarget(node, target) {
+            if (!node) {
+                return;
+            }
+
+            node.rotation.order = "YXZ";
+            target.x = node.rotation.x;
+            target.y = node.rotation.y;
+            target.z = node.rotation.z;
+        }
+
+        function setPatientArmPose(part) {
+            const shouldRaiseArms = part === "chest" || part === "abdomen";
+
+            if (shouldRaiseArms) {
+                // 胸部/腹部扫描时，双手上举过头顶并尽量平放，避免遮挡扫描区域。
+                armTargets.right.x = Math.PI / 2;
+                armTargets.right.y = -Math.PI / 2;
+                armTargets.right.z = -Math.PI * 1.5;
+
+                armTargets.left.x = Math.PI / 2;
+                armTargets.left.y = Math.PI / 2;
+                armTargets.left.z = Math.PI * 1.5;
+            } else {
+                // 头颅扫描和复位时恢复原来的手臂姿势。
+                armTargets.right.x = Math.PI / 2;
+                armTargets.right.y = 0;
+                armTargets.right.z = 0;
+
+                armTargets.left.x = Math.PI / 2;
+                armTargets.left.y = 0;
+                armTargets.left.z = 0;
+            }
+        }
+
+        function updateArmPose() {
+            if (rightArmNode) {
+                rightArmNode.rotation.x += (armTargets.right.x - rightArmNode.rotation.x) * 0.08;
+                rightArmNode.rotation.y += (armTargets.right.y - rightArmNode.rotation.y) * 0.08;
+                rightArmNode.rotation.z += (armTargets.right.z - rightArmNode.rotation.z) * 0.08;
+            }
+
+            if (leftArmNode) {
+                leftArmNode.rotation.x += (armTargets.left.x - leftArmNode.rotation.x) * 0.08;
+                leftArmNode.rotation.y += (armTargets.left.y - leftArmNode.rotation.y) * 0.08;
+                leftArmNode.rotation.z += (armTargets.left.z - leftArmNode.rotation.z) * 0.08;
+            }
+        }
+
+        function areArmsReady() {
+            if (!rightArmNode || !leftArmNode) {
+                return true;
+            }
+
+            const tolerance = 0.08;
+            const rightReady =
+                Math.abs(armTargets.right.x - rightArmNode.rotation.x) < tolerance &&
+                Math.abs(armTargets.right.y - rightArmNode.rotation.y) < tolerance &&
+                Math.abs(armTargets.right.z - rightArmNode.rotation.z) < tolerance;
+
+            const leftReady =
+                Math.abs(armTargets.left.x - leftArmNode.rotation.x) < tolerance &&
+                Math.abs(armTargets.left.y - leftArmNode.rotation.y) < tolerance &&
+                Math.abs(armTargets.left.z - leftArmNode.rotation.z) < tolerance;
+
+            return rightReady && leftReady;
+        }
+
+        loader.load(
+            "ct_scanner.glb",
+            function (gltf) {
+                const ct = gltf.scene;
+
+                ct.scale.set(4000, 4000, 4000);
+                ct.position.set(0, 0, 0);
+                scene.add(ct);
+
+                let bedBoard = null;
+
+                ct.traverse((node) => {
+                    if (node.isMesh) {
+                        console.log("CT零件:", node.name);
+
+                        if (!bedBoard && isBedBoardName(node.name)) {
+                            bedBoard = node;
+                        }
+                    }
+                });
+
+                if (bedBoard) {
+                    console.log("找到床板:", bedBoard.name);
+
+                    // attach 会尽量保持床板当前世界位置不变，
+                    // 同时把床板转移到 movingGroup 里。
+                    bedBoard.updateWorldMatrix(true, false);
+                    movingGroup.attach(bedBoard);
+                } else {
+                    console.warn("没有自动找到床板。请查看上面的 CT零件 名字，然后修改 isBedBoardName() 的匹配关键词。");
+                }
+
+                checkLoadStatus();
+            },
+            undefined,
+            function (error) {
+                console.error(error);
+                alert("CT 机器模型加载失败！");
+            }
+        );
+
+        // 加载患者模型
+        loader.load(
+            "patient.glb",
+            function (gltf) {
+                const patient = gltf.scene;
+
+                console.log("--- 正在扫描手臂节点 ---");
+
+                patient.traverse((node) => {
+                    if (
+                        node.name.toLowerCase().includes("arm") ||
+                        node.name.toLowerCase().includes("hand")
+                    ) {
+                        console.log("找到潜在手臂节点:", node.name);
+                    }
+                });
+
+                console.log("--- 扫描结束 ---");
+
+                const box = new THREE.Box3().setFromObject(patient);
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+
+                if (maxDim === 0) {
+                    return;
+                }
+
+                const targetSize = 140;
+                const scaleFactor = targetSize / maxDim;
+                patient.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+                const boxAfterScale = new THREE.Box3().setFromObject(patient);
+                const centerAfterScale = boxAfterScale.getCenter(new THREE.Vector3());
+                patient.position.set(
+                    -centerAfterScale.x,
+                    -centerAfterScale.y,
+                    -centerAfterScale.z
+                );
+
+                const wrapper = new THREE.Group();
+                wrapper.add(patient);
+
+                wrapper.rotation.x = THREE.MathUtils.degToRad(-100);
+                wrapper.rotation.y = THREE.MathUtils.degToRad(0);
+                wrapper.rotation.z = THREE.MathUtils.degToRad(0);
+
+                wrapper.position.set(0, 90, 150);
+
+                patient.traverse((node) => {
+                    node.rotation.order = "YXZ";
+
+                    if (node.name === "RightArm_032_41") {
+                        rightArmNode = node;
+                        node.rotation.set(0, 0, 0);
+                        node.rotation.x = Math.PI / 2;
+                        setArmTarget(node, armTargets.right);
+                    }
+
+                    if (node.name === "LeftArm_00_17") {
+                        leftArmNode = node;
+                        node.rotation.set(0, 0, 0);
+                        node.rotation.x = Math.PI / 2;
+                        setArmTarget(node, armTargets.left);
+                    }
+                });
+
+                setPatientArmPose(currentScanPart);
+                patientGroup.add(wrapper);
+                checkLoadStatus();
+            },
+            undefined,
+            function (error) {
+                console.error(error);
+                alert("患者模型加载失败！");
+            }
+        );
+
+        // 加载输液架模型：只加入 scene，不加入 movingGroup，所以不会影响床和患者的移动。
+        loader.load(
+            "iv_drip_stand.glb",
+            function (gltf) {
+                const ivStand = gltf.scene;
+                const ivStandGroup = new THREE.Group();
+
+                applyIVStandColors(ivStand);
+                normalizeModelToHeight(ivStand, 130);
+
+                ivStandGroup.add(ivStand);
+                ivStandGroup.position.set(-125, 0, 90);
+                ivStandGroup.rotation.y = THREE.MathUtils.degToRad(15);
+
+                scene.add(ivStandGroup);
+                checkLoadStatus();
+            },
+            undefined,
+            function (error) {
+                console.error(error);
+                alert("输液架模型加载失败！请确认 iv_drip_stand.glb 和 index.html 在同一个文件夹。");
+                checkLoadStatus();
+            }
+        );
+
+        // 进床控制动画逻辑
+        let targetZ = 0;
+        let pendingMovePart = null;
+
+        const positions = {
+            head: -20,
+            chest: -70,
+            abdomen: -120,
+            reset: 0
+        };
+
+        const teachingNotes = {
+            general: {
+                title: "通用 CT 注意事项",
+                items: [
+                    "去除金属物品：项链、耳环、发卡、眼镜、皮带扣、内衣钢圈、手机、钥匙全部摘掉，避免产生伪影看不清图像。",
+                    "体位不动：全程保持身体静止，头部不能晃动，否则图像模糊需要重扫。",
+                    "告知特殊情况：怀孕、备孕、甲亢、肾功能差、药物过敏，提前跟技师说明；增强 CT 需要重点评估肾功能。",
+                    "辐射防护：非检查部位用铅衣遮挡，陪护人员不要留在扫描间内。"
+                ]
+            },
+            head: {
+                title: "头颅扫描注意事项",
+                items: [
+                    "闭眼放松，下颌微收，严格对齐听眦线。",
+                    "不嚼口香糖、不咬牙，避免颞肌运动伪影。",
+                    "体内有钢板、人工耳蜗、颅内植入物提前告知。"
+                ]
+            },
+            chest: {
+                title: "胸部扫描注意事项",
+                items: [
+                    "严格按指令憋气：吸气→憋住气不动→呼气，配合不好肺纹理会重叠，影响结节、病灶判断。",
+                    "双手举过头顶放在头上，拉开肩胛骨，避开遮挡肺部。",
+                    "不穿带印花、金属logo的衣物。"
+                ]
+            },
+            abdomen: {
+                title: "腹部扫描注意事项",
+                items: [
+                    "空腹要求（最重要）：上腹/全腹CT常规禁食4~6小时，防止食物遮挡肝胆胰胃肠道。",
+                    "饮水充盈胃肠道平扫一般提前喝温水/对比剂，撑开肠胃，区分肠管和病灶。",
+                    "增强CT额外要求  1. 检查前确认肾功能正常  2. 注射造影剂后观察15~30分钟，防止过敏 3. 检查后多喝水，加速造影剂排出。",
+                    "扫描前确认患者屏气配合情况，减少运动伪影。"
+                ]
+            }
+        };
+
+        function showTeachingPanel(part) {
+            const panel = document.getElementById("teaching-panel");
+            const title = document.getElementById("teaching-title");
+            const list = document.getElementById("teaching-list");
+            const notes = teachingNotes[part];
+
+            if (!notes) {
+                panel.classList.remove("show");
+                return;
+            }
+
+            title.innerText = notes.title;
+            list.innerHTML = "";
+
+            notes.items.forEach((item) => {
+                const li = document.createElement("li");
+                li.innerText = item;
+                list.appendChild(li);
+            });
+
+            panel.classList.add("show");
+        }
+
+        window.moveToPosition = function (event, part) {
+            currentScanPart = part;
+            setPatientArmPose(part);
+            pendingMovePart = null;
+
+            if (part === "chest" || part === "abdomen") {
+                pendingMovePart = part;
+            } else {
+                targetZ = positions[part];
+            }
+
+            const statusText = document.getElementById("status-text");
+            const btns = document.querySelectorAll(".scan-btn");
+
+            btns.forEach((btn) => btn.classList.remove("active"));
+            event.currentTarget.classList.add("active");
+
+            if (part === "reset") {
+                statusText.innerText = "退床中...";
+                statusText.style.color = "#ff9800";
+                showTeachingPanel("general");
+            } else {
+                const partName =
+                    part === "head" ? "头颅" :
+                    part === "chest" ? "胸部" :
+                    "腹部";
+
+                statusText.innerText = "正在进床，准备进行 " + partName + " 扫描";
+                if (pendingMovePart) {
+                    statusText.innerText = "正在进行上肢摆位，完成后自动进床进行 " + partName + " 扫描";
+                }
+                statusText.style.color = "#f44336";
+                showTeachingPanel(part);
+            }
+        };
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            updateArmPose();
+
+            if (pendingMovePart && areArmsReady()) {
+                targetZ = positions[pendingMovePart];
+                pendingMovePart = null;
+
+                const statusText = document.getElementById("status-text");
+                const partName =
+                    currentScanPart === "chest" ? "胸部" :
+                    currentScanPart === "abdomen" ? "腹部" :
+                    "头颅";
+
+                statusText.innerText = "正在进床，准备进行 " + partName + " 扫描";
+                statusText.style.color = "#f44336";
+            }
+
+            // 关键：移动 movingGroup，而不是只移动 patientGroup。
+            movingGroup.position.z += (targetZ - movingGroup.position.z) * 0.05;
+
+            if (Math.abs(targetZ - movingGroup.position.z) < 0.5) {
+                const statusText = document.getElementById("status-text");
+
+                if (targetZ !== 0 && statusText.innerText.includes("进床")) {
+                    statusText.innerText = "定位完成，可以开始曝光扫描。";
+                    statusText.style.color = "#00ADB5";
+                }
+
+                if (targetZ === 0 && statusText.innerText.includes("退床")) {
+                    statusText.innerText = "设备待机中";
+                    statusText.style.color = "#4caf50";
+                }
+            }
+
+            laserMaterial.opacity = 0.4 + Math.sin(Date.now() * 0.005) * 0.4;
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+        showTeachingPanel("general");
+
+        window.addEventListener("resize", onWindowResize, false);
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>
